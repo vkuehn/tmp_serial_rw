@@ -1,0 +1,59 @@
+*.class
+
+#IDEs
+*.sublime-workspace
+.idea/**
+#eclipse Config Files #
+.classpath
+.project
+.settings
+.metadata
+# Spyder project settings
+.spyderproject
+.spyproject
+# jupyter
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+# IPython
+profile_default/
+ipython_config.py
+# Visual Studio Code
+.vscode
+
+# Log Files
+*.log
+
+# Runtime data
+pids
+*.dat
+*.gz
+*.out
+*.pid
+*.pid.lock
+*.tgz
+*.*~
+
+# Optional eslint cache
+.eslintcache
+
+#python
+*.pyc
+__pycache__/
+*$py.class
+
+# C extensions
+*.so
+
+# Environments
+.env
+.venv
+env/
+venv/
+
+#setup creations
+Miniconda3-latest-Linux-x86.sh
+
+#bfg
+.git.bfg-report/
+
+/.DS_Store

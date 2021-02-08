@@ -1,0 +1,35 @@
+{
+  "OpenBot": {
+    "base": {
+      "connection": {
+        "serial": {
+          "baudrate": "9600",
+          "port": "/dev/ttyS0",
+          "response": "none",
+          "status": "no port",
+          "timeout": "3"
+        }
+      },
+      "motors": {
+        "left": 0,
+        "right": 0
+      },
+      "states": {
+        "connected": "Connected",
+        "connecting": "Connecting",
+        "end": "End",
+        "error": "Error",
+        "noAnswer": "NoAnswer",
+        "noConnect": "NoConnect",
+        "noPort": "NoPort",
+        "noPortOpen": "NoOpenPort",
+        "unknown": "UnKnown",
+        "ok": "OK"
+      }
+    },
+    "name": "OpenBot",
+    "debug": "true",
+    "ip": "127.0.0.1",
+    "port": "9090"
+  }
+}

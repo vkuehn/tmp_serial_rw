@@ -1,0 +1,69 @@
+@CHARSET "UTF-8";
+
+/*--default------------------------*/
+input[type="text"] {
+    border: 0;
+    color: #f6931f;
+    font-weight: bold;
+}
+
+/* infos */
+#labelMessage {
+    position: absolute;
+    bottom: 1em;
+    left: 1em;
+}
+#message {
+    width: 150px;
+}
+
+/*---Buttons -----------------*/
+.serialConnection {
+    position: absolute;
+    top: 1em;
+    right: 2em;
+}
+.serialNoConnect {
+    color: #ff0000;
+}
+.serialConnected {
+    color: #00ff00;
+}
+#iconShutdown {
+    position: absolute;
+    top: 2em;
+    right: 1em;
+}
+
+.icon-power {
+    width: 50px;
+}
+
+.ui-icon-power:active {
+    font-size: 2.5em;
+}
+/*--sliders-----------------------*/
+#motorsDirect{
+	position: absolute;
+	top: 2em;
+	right: 5em;
+}
+#slider-motor-left{
+	height: 250px;
+	width: 10px;
+}
+#slider-motor-right{
+	height: 250px;
+	width: 10px;
+}
+/*----directions------------------*/
+#tableBaseDirections {
+    position: absolute;
+    left: 2em;
+    top: 2em;
+    width: 200px;
+}
+
+#cnvsJoy {
+    border: 1px #000000;
+}

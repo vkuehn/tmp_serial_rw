@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Roboter test application</title>
+    <link href="/javascripts/jquery-ui-1.12.1.custom/jquery-ui.css" rel="stylesheet"/>
+    <link href="/stylesheets/robota.css" rel="stylesheet"/>
+
+    <script src="/javascripts/jquery-ui-1.12.1.custom/external/jquery/jquery.js"></script>
+    <script src="/javascripts/jquery-ui-1.12.1.custom/jquery-ui.js"></script>
+
+    <link rel="shortcut icon" type="image/x-icon" href="/images/favicon.ico">
+</head>
+<body>
+<div id="labelBase">
+    <label>Control:Base:</label>
+    <input type="text" id="labelForwardBackward" readonly/>
+    <input type="text" id="labelSide" readonly/>
+</div>
+<!-- robot base directions ---------------------------------------------------------------->
+<div id="tableBaseDirections">
+    <table>
+        <tr>
+            <td colspan="3">Control:Base Move</td>
+        </tr>
+        <tr>
+            <td><a id="turnLeft">
+                <svg height="100" width="100">
+                    <polygon points="0,50 0,0 50,0" style="fill:orange;stroke:purple;stroke-width:1"/>
+                </svg>
+            </a></td>
+            <td><a id="moveForward">
+                <svg height="100" width="100">
+                    <polygon points="0,50 50,0 100,50" style="fill:orange;stroke:purple;stroke-width:1"/>
+                </svg>
+            </a></td>
+            <td><a id="turnRight">
+                <svg height="100" width="100">
+                    <polygon points="50,0 100,0 100,50" style="fill:orange;stroke:purple;stroke-width:1"/>
+                </svg>
+            </a></td>
+        </tr>
+        <tr>
+            <td></td>
+            <td>
+                <div id="steercontainter">
+                    <canvas id="cnvsJoy" width="100px" height="100px"></canvas>
+                </div>
+            </td>
+            <td></td>
+        </tr>
+        <tr>
+            <td><a id="turnbackLeft">
+                <svg height="100" width="100">
+                    <polygon points="0,50 0,100 50,100" style="fill:orange;stroke:purple;stroke-width:1"/>
+                </svg>
+            </a></td>
+            <td><a id="moveBackward">
+                <svg height="100" width="100">
+                    <polygon points="0,50 50,100 100,50" style="fill:orange;stroke:purple;stroke-width:1"/>
+                </svg>
+            </a></td>
+            <td><a id="turnbackright">
+                <svg height="100" width="100">
+                    <polygon points="50,100 100,100 100,50" style="fill:orange;stroke:purple;stroke-width:1"/>
+                </svg>
+            </a></td>
+        </tr>
+        <tr>
+            <td><a id="stand" class="ui-icon ui-icon-closethick"><span>stand</span></a></td>
+            <td></td>
+            <td></td>
+        </tr>
+        <tr>
+            <td colspan="3">
+                <div id="lblBaseVel">
+                    <label>Base velocity:</label>
+                    <input type="text" id="lblVel" readonly/>
+                </div>
+            </td>
+        </tr>
+    </table>
+</div>
+<!----------------------------------------------------------------------------------------->
+<div id="motorsDirect">
+    <table>
+        <tr>
+            <td colspan="2">Motors Control</td>
+        </tr>
+        <tr>
+            <td>
+                <div id="slider-motor-left"></div>
+            </td>
+            <td>
+                <div id="slider-motor-right"></div>
+            </td>
+        </tr>
+        <tr>
+            <td><input type="text" id="labelMotorLeft" readonly/></td>
+            <td><input type="text" id="labelMotorRight" readonly/></td>
+        </tr>
+    </table>
+</div>
+<!-- Serial Connection -------------------------------------------------------->
+<div id="serialConnection" class="ui-icon ui-icon-refresh">Serial Connection</div>
+
+<!-- Shutdown Button -------------------------------------------------------->
+<div id="iconShutdown" class="icon-power">
+    <img src="/images/power-button.svg" alt="Shutdown"/>
+</div>
+
+<!-- Message ---------------------------------------------------------------->
+<div id="labelMessage">
+    <label>Message:</label>
+    <input type="Text" id="message" readonly/>
+</div>
+<!-- Scripts ----------------------------------------------------------------->
+<script>
+    let linear = '';
+    let motors = '';
+    let robot = '';
+    let serial = {state: 'unknown', command: 'connect'}
+    let textForward = 'FWD';
+    let textSide = 'SIDE';
+    let state = '';
+    let ws = '';
+
+    let lblLeft = document.getElementById("labelMotorLeft");
+    let lblMessage = document.getElementById("message");
+    let lblRight = document.getElementById("labelMotorRight");
+    let lblSide = document.getElementById("labelSide");
+
+    window.onload = function () {
+        $.get('/config', function (response) {
+            robot = JSON.parse(response);
+            const robot_ws = robot.ip + ':' + robot.port;
+            motors = robot.base.motors;
+            ws = new WebSocket("ws://" + robot_ws + "/websocket");
+            ws.onclose = function () {
+                showMessage("WS closed");
+            }
+            ws.onopen = function () {
+                showMessage("WS opened");
+            }
+            ws.onmessage = function (e) {
+                showMessage(e.data);
+            };
+        });
+        /*set default screen text values*/
+        $("#labelForwardBackward").val(textForward + " 0");
+        lblSide.value = (textSide + "  0");
+
+        /*motors sliders*/
+        $("#slider-motor-left").slider({
+            orientation: "vertical",
+            range: "min",
+            value: motors.left,
+            min: -255,
+            max: 255,
+            change: function (event, ui) {
+                motors.left = ui.value;
+            },
+            slide: function (event, ui) {
+                motors.left = ui.value;
+            }
+        });
+
+        $("#slider-motor-right").slider({
+            orientation: "vertical",
+            range: "min",
+            value: motors.right,
+            min: -255,
+            max: 255,
+            change: function (event, ui_) {
+                motors.right = ui_.value;
+            },
+            slide: function (event, ui_) {
+                motors.right = ui_.value;
+            }
+        });
+    }
+
+    document.getElementById("iconShutdown").addEventListener("click", function () {
+        window.open("/shutdown");
+    })
+
+    /*directions*/
+    document.getElementById("moveForward").addEventListener("click", function () {
+        motors.right = 100;
+        motors.left = 100;
+        setMotorSliders();
+    });
+    document.getElementById("moveBackward").addEventListener("click", function () {
+        motors.right = -100;
+        motors.left = -100;
+        setMotorSliders();
+    });
+    document.getElementById("turnLeft").addEventListener("click", function () {
+        motors.right = 128;
+        motors.left = 90;
+        setMotorSliders();
+    });
+    document.getElementById("turnRight").addEventListener("click", function () {
+        motors.right = 90;
+        motors.left = 128;
+        setMotorSliders();
+    });
+    document.getElementById("stand").addEventListener("click", function () {
+        motors.right = 0;
+        motors.left = 0;
+        setMotorSliders();
+    });
+    /* end of directions */
+
+
+    function sendMsg(messageToServer) {
+        if (ws.readyState == 1) {
+            ws.send(JSON.stringify(messageToServer));
+        }
+    }
+
+    function setMotorSliders() {
+        $("#slider-motor-right").slider('value', motors.right);
+        lblRight.value = motors.right;
+        $("#slider-motor-left").slider('value', motors.left);
+        lblLeft.value = motors.left;
+        _m = {"motors": motors};
+        sendMsg(_m);
+    }
+
+    function showMessage(data) {
+        lblMessage.value = (data);
+    }
+
+    function showValues() {
+        _y = canvasJoystick.linearY;
+        _x = canvasJoystick.linearX;
+        _y = _y * 5
+        _x = _x * 5
+        left = _y
+        right = _y
+        if (_x > 0) {
+            right = right - _x;
+        } else {
+            left = left - -_x;
+        }
+        motors.right = right
+        motors.left = left
+        console.log(motors);
+        // avoid problems during load time
+        if ($("#slider-motor-right").slider("instance")) {
+            setMotorSliders();
+        }
+    }
+
+    //-----Serial-----------------------------------------------------------------------------
+    // TODO rework
+    var elemSC = document.getElementById("serialConnection");
+    elemSC.classList.add('serialConnection');
+
+    function getSerialConnectionState() {
+        $.post(url + '/serial', serial).done(function (result) {
+            serial.state = result;
+            showSerialState();
+        });
+    }
+
+    function showSerialState() {
+        if (serial.state == robot.base.connection.connected) {
+            elemSC.classList.remove('serialNoConnect');
+            elemSC.classList.add('serialConnected');
+        }
+        if (serial.state == robot.base.connection.connected) {
+            elemSC.classList.remove('serialNoConnect');
+            elemSC.classList.add('serialConnected');
+        }
+        if (serial.state == robot.base.connection.noConnect) {
+            elemSC.classList.remove('serialConnected');
+            elemSC.classList.add('serialNoConnect');
+        }
+        if (serial.state == robot.base.connection.noPort) {
+            elemSC.classList.remove('serialConnected');
+            elemSC.classList.add('serialNoConnect');
+        }
+    }
+
+    //---Serial End-----------------------------------------------------------------------------
+</script>
+<script src="./javascripts/canvasJoystick.js"></script>
+</body>
+</html>
