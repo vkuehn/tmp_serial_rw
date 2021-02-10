@@ -1,11 +1,12 @@
 import json
+import multiprocessing
 import os
+
+from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 
-import tornado.web
-import tornado.websocket
-import tornado.httpserver
-from tornado.ioloop import IOLoop
+from tornado import ioloop
+from tornado import web, websocket
 
 from resources_local import bye
 from resources_local import Logger
@@ -14,6 +15,7 @@ from resources_local import SerialHandler
 CONFIG_NAME = 'robot_config.json'
 NODE_NAME = 'base'
 ROBOT_NAME = 'OpenBot'
+CMD_STOP = "server:stop"
 
 logger = Logger(ROBOT_NAME)
 log = logger.log
@@ -28,10 +30,12 @@ debug = bool(robotConfig[ROBOT_NAME]['debug'])
 SERVER_IP = str(robotConfig[ROBOT_NAME]['ip'])
 SERVER_PORT = robotConfig[ROBOT_NAME]['port']
 
+# -- Serial -----------------------------------------------
 sh = SerialHandler()
+qSerialTo = multiprocessing.Queue()
+qSerialFrom = multiprocessing.Queue()
 
 
-# helper------------------------------------------
 def check_message_from_socket(msg):
     try:
         message = json.loads(msg)
@@ -39,43 +43,56 @@ def check_message_from_socket(msg):
             log(message)
         if 'motors' in message:
             serial_data_to = 'c' + str(message['motors']['left']) + ',' + str(message['motors']['right'])
-            sh.write(serial_data_to)
-            sleep(0.1)
+            qSerialTo.put(serial_data_to)
     except Exception as e:
         log('error %s', e)
 
-# end of Helper-------------------------------------------------------
 
-
-class ConfigHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.write(json.dumps(robotConfig[ROBOT_NAME]))
-
-
-class IndexPageHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.render("index.html")
-
-
-class ShutdownHandler(tornado.web.RequestHandler):
-    def get(self):
-        self.render("shutdown.html", title="Shutdown", item="shutdown of " + ROBOT_NAME)
-        bye.bye(__file__)
-
-
-# -- async
-async def websocket_write_loop():
-    log("start websocket_write_loop")
-    while True:
+def process_serial_worker():
+    log("start process_serial_worker")
+    running = True
+    while running:
+        _msg_to_ser = qSerialTo.get()
+        if str(_msg_to_ser).startswith(CMD_STOP):
+            running = False
+        sh.write(_msg_to_ser)
         sh.read()
         serial_data_from = str(sh.data)
         if len(serial_data_from) > 0:
             if debug:
                 log('serial read:' + serial_data_from)
+            qSerialFrom.put(str(serial_data_from))
+        sleep(0.1)
+    log("stop process_serial_worker")
+
+
+# -- web ------------------------------------------------------------
+def periodic_websocket_write_loop():
+    # no logs in periodics !
+    if not qSerialFrom.empty():
+        serial_data_from = qSerialFrom.get()
+        if len(WebSocketHandler.connections) > 0:
             [con.write_message(serial_data_from) for con in WebSocketHandler.connections]
 
 
-class WebSocketHandler(tornado.websocket.WebSocketHandler):
+
+class ConfigHandler(web.RequestHandler):
+    def get(self):
+        self.write(json.dumps(robotConfig[ROBOT_NAME]))
+
+
+class IndexPageHandler(web.RequestHandler):
+    def get(self):
+        self.render("index.html")
+
+
+class ShutdownHandler(web.RequestHandler):
+    def get(self):
+        self.render("shutdown.html", title="Shutdown", item="shutdown of " + ROBOT_NAME)
+        bye.bye(__file__)
+
+
+class WebSocketHandler(websocket.WebSocketHandler):
     connections = set()
 
     def open(self):
@@ -84,7 +101,7 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
 
     def on_message(self, message):
         if debug:
-            log('on_message: received ' + str(message))
+            log('ws message: ' + str(message))
         check_message_from_socket(message)
 
     def on_close(self):
@@ -92,14 +109,14 @@ class WebSocketHandler(tornado.websocket.WebSocketHandler):
         log('connection closed')
 
 
-class WebApplication(tornado.web.Application):
-    def __init__(self):
+class WebApplication(web.Application):
+    def __init__(self, autostart=True):
         handlers = [
             (r'/', IndexPageHandler),
             (r"/config", ConfigHandler),
             (r"/shutdown", ShutdownHandler),
             (r'/websocket', WebSocketHandler),
-            (r'/(.*)', tornado.web.StaticFileHandler, {'path': resourcesWeb})
+            (r'/(.*)', web.StaticFileHandler, {'path': resourcesWeb})
         ]
 
         settings = {
@@ -107,24 +124,39 @@ class WebApplication(tornado.web.Application):
             'static_path': resourcesWeb,
             'template_path': 'templates'
         }
-        tornado.web.Application.__init__(self, handlers, **settings)
+
+        web.Application.__init__(self, handlers, **settings)
 
 
 if __name__ == '__main__':
-    try:
-        if debug:
-            log('debug is true')
-        log('init')
-        log('Start web on ' + ROBOT_NAME + ' address ' + SERVER_IP + ':' + str(SERVER_PORT))
-        ws_app = WebApplication()
-        server = tornado.httpserver.HTTPServer(ws_app)
-        server.listen(SERVER_PORT)
+    if debug:
+        log('debug is true')
+    log('Start web on ' + ROBOT_NAME + ' address ' + SERVER_IP + ':' + str(SERVER_PORT))
+    ws_app = WebApplication()
+    ws_app.listen(SERVER_PORT)
+    reader_executor = ThreadPoolExecutor(1)
 
-        #IOLoop.current().spawn_callback(websocket_write_loop)
-        IOLoop.instance().start()
+    pW = multiprocessing.Process(target=process_serial_worker)
+    pW.daemon = True
+
+    try:
+        pW.start()
+
+        scheduler = ioloop.PeriodicCallback(callback=periodic_websocket_write_loop, callback_time=300, jitter=0.1)
+        scheduler.start()
+
+        ioloop.IOLoop.instance().start()
     except KeyboardInterrupt:
+        # try clean stop
+        for con in WebSocketHandler.connections:
+            con.close()
+        scheduler.stop()
+        ioloop.IOLoop.instance().stop()
+        qSerialFrom.close()
+        qSerialTo.put(CMD_STOP)
         log('Keyboard Interrupt received wait 3 seconds')
-        sleep(3)
+        sleep(10)
+        pW.join()
     except Exception as e:
         log('error:' + str(e))
     finally:

@@ -143,6 +143,7 @@
                 showMessage("WS opened");
             }
             ws.onmessage = function (e) {
+                console.log(e.data);
                 showMessage(e.data);
             };
         });
@@ -181,7 +182,7 @@
     }
 
     document.getElementById("iconShutdown").addEventListener("click", function () {
-        window.open("/shutdown");
+        window.open("/shutdown","_self");
     })
 
     /*directions*/
