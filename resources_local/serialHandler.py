@@ -1,4 +1,3 @@
-import asyncio
 import serial
 import serial.tools.list_ports
 
@@ -21,5 +20,5 @@ class SerialHandler:
         self.read()
 
     def write(self, data):
-        data = str(data) + '\r'
+        data = str(data) + '\n\l'
         self.ser.write(data.encode())

@@ -155,7 +155,7 @@ if __name__ == '__main__':
         qSerialFrom.close()
         qSerialTo.put(CMD_STOP)
         log('Keyboard Interrupt received wait 3 seconds')
-        sleep(10)
+        sleep(2)
         pW.join()
     except Exception as e:
         log('error:' + str(e))

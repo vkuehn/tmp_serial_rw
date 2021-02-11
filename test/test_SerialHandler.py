@@ -67,18 +67,20 @@ def test_write_read():
     t = 'c128,128'
     print('write ' + t)
     sh.write(t)
-    sleep(1)
-    sh.read()
-    print(sh.data)
-    sleep(1)
+    for i in range(3):
+       sh.read()
+       print(sh.data)
+       sleep(1)
     print("write c0,0")
     sh.write("c0,0")
-    asyncio.run(sh.read_async())
-    print(sh.data)
+    for i in range(3):
+       asyncio.run(sh.read_async())
+       print(sh.data)
+       sleep(1)
 
 
 if __name__ == '__main__':
-    test_processes()
+    #test_processes()
     #test_async()
-    #test_write_read()
+    test_write_read()
     print('done')
